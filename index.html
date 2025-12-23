@@ -1,48 +1,36 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Mapa Interativo</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapa com Pontos</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+<button id="clear-all">Limpar tudo</button>
 
-<div id="controls">
-    <button id="zoomIn">+</button>
-    <button id="zoomOut">−</button>
-    <button id="limparTudo">Limpar tudo</button>
+<div id="viewport">
+  <div id="image-container">
+    <img id="bg-image" src="fundo.png" draggable="false">
+  </div>
 </div>
 
+<!-- MODAL -->
+<div class="modal" id="name-modal">
+  <div class="modal-content">
+    <h3>Nome do ponto</h3>
 
-<div id="container">
-    <div id="mapa"></div>
-</div>
+    <input id="point-name" placeholder="Digite o nome">
 
-<!-- Box nome -->
-<div id="boxNome" class="box hidden">
-    <input type="text" id="nomeInput" placeholder="Nome do ponto">
-
-    <div style="display:flex; gap:8px; margin-top:12px;">
-        <button id="salvarNome">Salvar</button>
-        <button id="cancelarNome" class="btn-secundario">Cancelar</button>
+    <div class="modal-actions">
+      <button id="save-point">Salvar</button>
+      <button id="delete-point" class="danger">Apagar</button>
     </div>
+
+    <button id="cancel-point" class="secondary">Cancelar</button>
+  </div>
 </div>
-
-
-<!-- Box apagar -->
-<div id="boxApagar" class="box hidden">
-    <p>Apagar este ponto?</p>
-    <button id="confirmarApagar">Apagar</button>
-    <button id="cancelarApagar">Cancelar</button>
-</div>
-
-<div id="boxLimpar" class="box hidden">
-    <p>Apagar todos os pontos?</p>
-    <button id="confirmarLimpar">Apagar</button>
-    <button id="cancelarLimpar">Cancelar</button>
-</div>
-
 
 <script src="script.js"></script>
 </body>

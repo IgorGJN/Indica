@@ -1,229 +1,133 @@
-// ================= ELEMENTOS =================
-const mapa = document.getElementById("mapa");
+const container = document.getElementById("image-container");
+const modal = document.getElementById("name-modal");
+const inputName = document.getElementById("point-name");
 
-const boxNome = document.getElementById("boxNome");
-const boxApagar = document.getElementById("boxApagar");
-const boxLimpar = document.getElementById("boxLimpar");
+const btnSave = document.getElementById("save-point");
+const btnDelete = document.getElementById("delete-point");
+const btnCancel = document.getElementById("cancel-point");
+const btnClear = document.getElementById("clear-all");
 
-const nomeInput = document.getElementById("nomeInput");
-const salvarNome = document.getElementById("salvarNome");
+const cores = [
+  "#ff3b30",
+  "#007aff",
+  "#34c759",
+  "#ffcc00",
+  "#af52de",
+  "#ff9500"
+];
 
-const confirmarApagar = document.getElementById("confirmarApagar");
-const cancelarApagar = document.getElementById("cancelarApagar");
+let points = [];
+let tempPos = null;
+let selectedPoint = null;
+let scale = 1;
 
-const confirmarLimpar = document.getElementById("confirmarLimpar");
-const cancelarLimpar = document.getElementById("cancelarLimpar");
+/* ===== CRIAR (SEGURAR FUNDO) ===== */
+let holdTimer;
 
-const zoomIn = document.getElementById("zoomIn");
-const zoomOut = document.getElementById("zoomOut");
-const limparTudo = document.getElementById("limparTudo");
+container.addEventListener("pointerdown", e => {
+  if (e.target !== container) return;
 
-const cancelarNome = document.getElementById("cancelarNome");
-
-
-// ================= ESTADO =================
-let escala = 1;
-let pontoAtual = null;
-let pontoTemporario = null;
-let isDragging = false;
-let longPressTimer = null;
-
-// ================= ZOOM =================
-zoomIn.onclick = () => {
-    escala += 0.1;
-    mapa.style.transform = `scale(${escala})`;
-};
-
-zoomOut.onclick = () => {
-    escala = Math.max(0.5, escala - 0.1);
-    mapa.style.transform = `scale(${escala})`;
-};
-
-// ================= STORAGE =================
-function salvarPontos() {
-    const pontos = [];
-    document.querySelectorAll(".ponto").forEach(p => {
-        pontos.push({
-            x: p.style.left,
-            y: p.style.top,
-            nome: p.dataset.nome || "",
-            cor: p.style.background
-        });
-    });
-    localStorage.setItem("pontos", JSON.stringify(pontos));
-}
-
-function carregarPontos() {
-    const dados = JSON.parse(localStorage.getItem("pontos") || "[]");
-    dados.forEach(d => criarPonto(d.x, d.y, d.nome, d.cor, true));
-}
-
-carregarPontos();
-
-// ================= CRIAR PONTO =================
-mapa.addEventListener("pointerdown", (e) => {
-    if (e.target !== mapa) return;
-    isDragging = false;
+  holdTimer = setTimeout(() => {
+    const rect = container.getBoundingClientRect();
+    tempPos = {
+      x: (e.clientX - rect.left) / scale,
+      y: (e.clientY - rect.top) / scale
+    };
+    openModal("");
+  }, 400);
 });
 
-mapa.addEventListener("pointerup", (e) => {
-    if (isDragging || e.target !== mapa) return;
+container.addEventListener("pointerup", () => clearTimeout(holdTimer));
 
-    pontoTemporario = criarPonto(
-        e.offsetX + "px",
-        e.offsetY + "px",
-        "",
-        "red",
-        false
-    );
+/* ===== MODAL ===== */
+function openModal(name) {
+  modal.classList.add("active");
+  inputName.value = name;
+  inputName.focus();
+  btnDelete.style.display = selectedPoint ? "block" : "none";
+}
 
-    pontoAtual = pontoTemporario;
-    abrirBoxNome(e.clientX, e.clientY);
+function closeModal() {
+  modal.classList.remove("active");
+  tempPos = null;
+  selectedPoint = null;
+}
+
+/* ===== SALVAR ===== */
+btnSave.onclick = () => {
+  const name = inputName.value.trim();
+  if (!name) return;
+
+  if (selectedPoint) {
+    selectedPoint.name = name;
+    selectedPoint.el.dataset.name = name;
+  } else {
+    createPoint(tempPos.x, tempPos.y, name);
+  }
+
+  closeModal();
+};
+
+/* ===== APAGAR ===== */
+btnDelete.onclick = () => {
+  if (!selectedPoint) return;
+  selectedPoint.el.remove();
+  points = points.filter(p => p !== selectedPoint);
+  closeModal();
+};
+
+btnCancel.onclick = closeModal;
+
+/* ===== CRIAR PONTO ===== */
+function createPoint(x, y, name) {
+  const el = document.createElement("div");
+  el.className = "point";
+  el.dataset.name = name;
+
+  const point = {
+    x, y, name,
+    corIndex: 0,
+    el
+  };
+
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+  el.style.color = cores[0];
+
+  container.appendChild(el);
+  points.push(point);
+
+  /* TOQUE RÁPIDO → COR */
+  el.addEventListener("click", e => {
+    e.stopPropagation();
+    point.corIndex = (point.corIndex + 1) % cores.length;
+    el.style.color = cores[point.corIndex];
+  });
+
+  /* SEGURAR → EDITAR */
+  let timer;
+  el.addEventListener("pointerdown", e => {
+    e.stopPropagation();
+    selectedPoint = point;
+
+    timer = setTimeout(() => {
+      openModal(point.name);
+    }, 500);
+  });
+
+  el.addEventListener("pointerup", () => clearTimeout(timer));
+}
+
+/* ===== ZOOM ===== */
+container.addEventListener("wheel", e => {
+  e.preventDefault();
+  scale += e.deltaY * -0.001;
+  scale = Math.min(Math.max(0.5, scale), 3);
+  container.style.transform = `scale(${scale})`;
 });
 
-// ================= FUNÇÃO PONTO =================
-function criarPonto(x, y, nome = "", cor = "red", definitivo = true) {
-    const ponto = document.createElement("div");
-    ponto.className = "ponto";
-    ponto.style.left = x;
-    ponto.style.top = y;
-    ponto.style.background = cor;
-    ponto.dataset.nome = nome;
-
-    const label = document.createElement("span");
-    label.textContent = nome;
-    ponto.appendChild(label);
-
-    // Toque / clique muda cor
-    ponto.addEventListener("click", (e) => {
-        e.stopPropagation();
-        ponto.style.background =
-            ponto.style.background === "red" ? "blue" : "red";
-        salvarPontos();
-    });
-
-    // Editar nome (duplo toque rápido)
-    ponto.addEventListener("dblclick", (e) => {
-        e.stopPropagation();
-        pontoAtual = ponto;
-        abrirBoxNome(e.clientX, e.clientY, ponto.dataset.nome);
-    });
-
-    // LONG PRESS (apagar)
-    ponto.addEventListener("pointerdown", (e) => {
-        isDragging = false;
-
-        longPressTimer = setTimeout(() => {
-            pontoAtual = ponto;
-            abrirBoxApagar();
-        }, 700);
-
-        const startX = e.clientX;
-        const startY = e.clientY;
-
-        function mover(ev) {
-            const dx = Math.abs(ev.clientX - startX);
-            const dy = Math.abs(ev.clientY - startY);
-
-            if (dx > 5 || dy > 5) {
-                clearTimeout(longPressTimer);
-                isDragging = true;
-
-                ponto.style.left = ev.clientX - 8 + "px";
-                ponto.style.top = ev.clientY - 8 + "px";
-            }
-        }
-
-        document.addEventListener("pointermove", mover);
-
-        document.addEventListener("pointerup", () => {
-            clearTimeout(longPressTimer);
-            document.removeEventListener("pointermove", mover);
-            salvarPontos();
-        }, { once: true });
-    });
-
-    mapa.appendChild(ponto);
-    if (definitivo) salvarPontos();
-    return ponto;
-}
-
-// ================= BOX NOME =================
-function abrirBoxNome(x, y, valor = "") {
-    nomeInput.value = valor;
-    boxNome.style.left = x + "px";
-    boxNome.style.top = y + "px";
-    boxNome.classList.remove("hidden");
-    nomeInput.focus();
-}
-
-function confirmarNome() {
-    if (!pontoAtual) return;
-
-    pontoAtual.dataset.nome = nomeInput.value;
-    pontoAtual.querySelector("span").textContent = nomeInput.value;
-
-    pontoTemporario = null;
-    pontoAtual = null;
-
-    boxNome.classList.add("hidden");
-    salvarPontos();
-}
-
-function cancelarCriacao() {
-    if (pontoTemporario) {
-        pontoTemporario.remove();
-        pontoTemporario = null;
-    }
-    pontoAtual = null;
-    boxNome.classList.add("hidden");
-}
-
-cancelarNome.onclick = cancelarCriacao;
-
-// Botão salvar
-salvarNome.onclick = confirmarNome;
-
-// Teclado virtual
-nomeInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") confirmarNome();
-    if (e.key === "Escape") cancelarCriacao();
-});
-
-// ================= BOX APAGAR =================
-function abrirBoxApagar() {
-    boxApagar.style.left = "50%";
-    boxApagar.style.top = "50%";
-    boxApagar.style.transform = "translate(-50%, -50%)";
-    boxApagar.classList.remove("hidden");
-}
-
-confirmarApagar.onclick = () => {
-    if (pontoAtual) pontoAtual.remove();
-    pontoAtual = null;
-    boxApagar.classList.add("hidden");
-    salvarPontos();
-};
-
-cancelarApagar.onclick = () => {
-    pontoAtual = null;
-    boxApagar.classList.add("hidden");
-};
-
-// ================= LIMPAR TUDO =================
-limparTudo.onclick = () => {
-    boxLimpar.style.left = "50%";
-    boxLimpar.style.top = "50%";
-    boxLimpar.style.transform = "translate(-50%, -50%)";
-    boxLimpar.classList.remove("hidden");
-};
-
-confirmarLimpar.onclick = () => {
-    document.querySelectorAll(".ponto").forEach(p => p.remove());
-    localStorage.removeItem("pontos");
-    boxLimpar.classList.add("hidden");
-};
-
-cancelarLimpar.onclick = () => {
-    boxLimpar.classList.add("hidden");
+/* ===== LIMPAR ===== */
+btnClear.onclick = () => {
+  points.forEach(p => p.el.remove());
+  points = [];
 };
